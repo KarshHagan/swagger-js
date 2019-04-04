@@ -38,7 +38,7 @@ function headerBuilder({req, parameter, value}) {
 
 // Replace path paramters, with values ( ie: the URL )
 function pathBuilder({req, value, parameter}) {
-  req.url = req.url.replace(`{${parameter.name}}`, encodeURIComponent(value))
+  req.url = req.url.split(`{${parameter.name}}`).join(encodeURIComponent(value))
 }
 
 // Add a query to the `query` object, which will later be stringified into the URL's search
@@ -59,7 +59,7 @@ function queryBuilder({req, value, parameter}) {
       value
     }
   }
-  else if (parameter.allowEmptyValue) {
+  else if (parameter.allowEmptyValue && value !== undefined) {
     const paramName = parameter.name
     req.query[paramName] = req.query[paramName] || {}
     req.query[paramName].allowEmptyValue = true

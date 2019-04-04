@@ -1,6 +1,6 @@
 import 'cross-fetch/polyfill' /* global fetch */
 import qs from 'qs'
-import jsYaml from 'js-yaml'
+import jsYaml from '@kyleshockey/js-yaml'
 import isString from 'lodash/isString'
 
 // For testing
@@ -69,7 +69,7 @@ export default async function http(url, request = {}) {
 export const shouldDownloadAsText = (contentType = '') => /(json|xml|yaml|text)\b/.test(contentType)
 
 function parseBody(body, contentType) {
-  if (contentType === 'application/json') {
+  if (contentType && (contentType.indexOf('application/json') === 0 || contentType.indexOf('+json') > 0)) {
     return JSON.parse(body)
   }
   return jsYaml.safeLoad(body)
@@ -134,9 +134,20 @@ export function serializeHeaders(headers = {}) {
   return obj
 }
 
-function isFile(obj) {
+export function isFile(obj, navigatorObj) {
+  if (!navigatorObj && typeof navigator !== 'undefined') {
+    // eslint-disable-next-line no-undef
+    navigatorObj = navigator
+  }
+  if (navigatorObj && navigatorObj.product === 'ReactNative') {
+    if (obj && typeof obj === 'object' && typeof obj.uri === 'string') {
+      return true
+    }
+    return false
+  }
   if (typeof File !== 'undefined') {
-    return obj instanceof File // eslint-disable-line no-undef
+    // eslint-disable-next-line no-undef
+    return obj instanceof File
   }
   return obj !== null && typeof obj === 'object' && typeof obj.pipe === 'function'
 }

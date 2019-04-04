@@ -14,10 +14,10 @@ function path({req, value, parameter}) {
     value,
     style: style || 'simple',
     explode: explode || false,
-    escape: false,
+    escape: true,
   })
 
-  req.url = req.url.replace(`{${name}}`, styledValue)
+  req.url = req.url.split(`{${name}}`).join(styledValue)
 }
 
 function query({req, value, parameter}) {
@@ -85,7 +85,7 @@ function query({req, value, parameter}) {
       }
     }
   }
-  else if (parameter.allowEmptyValue) {
+  else if (parameter.allowEmptyValue && value !== undefined) {
     const paramName = parameter.name
     req.query[paramName] = req.query[paramName] || {}
     req.query[paramName].allowEmptyValue = true

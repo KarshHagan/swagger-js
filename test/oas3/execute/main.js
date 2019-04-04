@@ -1,8 +1,7 @@
-import expect, {createSpy, spyOn} from 'expect'
 import xmock from 'xmock'
 import path from 'path'
 import fs from 'fs'
-import jsYaml from 'js-yaml'
+import jsYaml from '@kyleshockey/js-yaml'
 
 import {execute, buildRequest, baseUrl, applySecurities, self as stubs} from '../../../src/execute'
 
@@ -40,6 +39,45 @@ describe('buildRequest - OpenAPI Specification 3.0', function () {
       })
     })
 
+    it('should build a twice-included path parameter request', function () {
+      // Given
+      const spec = {
+        openapi: '3.0.0',
+        paths: {
+          '/one/{myParam}/{myParam}': {
+            get: {
+              operationId: 'getMe',
+              parameters: [
+                {
+                  name: 'myParam',
+                  in: 'path',
+                  required: true,
+                  schema: {
+                    type: 'string'
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+
+      // when
+      const req = buildRequest({
+        spec,
+        operationId: 'getMe',
+        parameters: {
+          myParam: 'hi'
+        }
+      })
+
+      expect(req).toEqual({
+        method: 'GET',
+        url: '/one/hi/hi',
+        credentials: 'same-origin',
+        headers: {},
+      })
+    })
     it('should build a request for the given operationId, using the first server by default', function () {
       // Given
       const spec = {
@@ -908,6 +946,186 @@ describe('buildRequest - OpenAPI Specification 3.0', function () {
         headers: {},
         credentials: 'same-origin',
         method: 'POST'
+      })
+    })
+  })
+  describe('allowEmptyValue', () => {
+    describe('query', () => {
+      it('should include empty parameter values for a query param with allowEmptyValue', () => {
+        const spec = {
+          openapi: '3.0.0',
+          paths: {
+            '/one': {
+              get: {
+                operationId: 'getMe',
+                parameters: [
+                  {
+                    name: 'name',
+                    in: 'query',
+                    allowEmptyValue: true
+                  }
+                ]
+              }
+            }
+          }
+        }
+
+        // when
+        const req = buildRequest({
+          spec,
+          operationId: 'getMe',
+          parameters: {
+            name: ''
+          }
+        })
+
+        expect(req).toMatchObject({
+          method: 'GET',
+          url: '/one?name=',
+          credentials: 'same-origin',
+          headers: {},
+        })
+      })
+      it('should not include omitted parameter values for a query param with allowEmptyValue', () => {
+        const spec = {
+          openapi: '3.0.0',
+          paths: {
+            '/one': {
+              get: {
+                operationId: 'getMe',
+                parameters: [
+                  {
+                    name: 'name',
+                    in: 'query',
+                    allowEmptyValue: true
+                  }
+                ]
+              }
+            }
+          }
+        }
+
+        // when
+        const req = buildRequest({
+          spec,
+          operationId: 'getMe',
+          parameters: {}
+        })
+
+        expect(req).toMatchObject({
+          method: 'GET',
+          url: '/one',
+          credentials: 'same-origin',
+          headers: {},
+        })
+      })
+      it('should not include empty parameter values for a query param lacking allowEmptyValue', () => {
+        const spec = {
+          openapi: '3.0.0',
+          paths: {
+            '/one': {
+              get: {
+                operationId: 'getMe',
+                parameters: [
+                  {
+                    name: 'name',
+                    in: 'query'
+                  }
+                ]
+              }
+            }
+          }
+        }
+
+        // when
+        const req = buildRequest({
+          spec,
+          operationId: 'getMe',
+          parameters: {
+            name: ''
+          }
+        })
+
+        expect(req).toMatchObject({
+          method: 'GET',
+          url: '/one',
+          credentials: 'same-origin',
+          headers: {},
+        })
+      })
+      it('should not include omitted parameter values for a query param lacking allowEmptyValue', () => {
+        const spec = {
+          openapi: '3.0.0',
+          paths: {
+            '/one': {
+              get: {
+                operationId: 'getMe',
+                parameters: [
+                  {
+                    name: 'name',
+                    in: 'query'
+                  }
+                ]
+              }
+            }
+          }
+        }
+
+        // when
+        const req = buildRequest({
+          spec,
+          operationId: 'getMe',
+          parameters: {}
+        })
+
+        expect(req).toMatchObject({
+          method: 'GET',
+          url: '/one',
+          credentials: 'same-origin',
+          headers: {},
+        })
+      })
+    })
+  })
+  describe('special media types', function () {
+    describe('file-as-body types', function () {
+      it('should preserve blobs for application/octet-stream', () => {
+        const spec = {
+          openapi: '3.0.0',
+          paths: {
+            '/one': {
+              get: {
+                operationId: 'getMe',
+                requestBody: {
+                  content: {
+                    'application/octet-stream': {
+                      schema: {
+                        type: 'string',
+                        format: 'binary'
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // when
+        const req = buildRequest({
+          spec,
+          operationId: 'getMe',
+          requestBody: Buffer.from('this is a test')
+        })
+
+        expect(req).toMatchObject({
+          method: 'GET',
+          url: '/one',
+          credentials: 'same-origin',
+          headers: {},
+        })
+
+        expect(req.body.toString('base64')).toEqual('dGhpcyBpcyBhIHRlc3Q=')
       })
     })
   })
